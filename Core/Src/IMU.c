@@ -9,6 +9,8 @@
 #include "variables.h"
 #include "USER_FUNCTIONS.h"
 
+MPU6500_t MPU6500;
+
 //Magnetometer Functions
 typedef struct LSM9DS1 {
 
@@ -16,10 +18,9 @@ typedef struct LSM9DS1 {
 		uint16_t mx, my, mz;
 	} mag;
 
-} LSM9DS1;
+} lsm9ds1;
 
 //MPU definations
-
 const uint8_t READWRITE_CMD = 0x80;
 
 // MPU6500 registers
@@ -60,6 +61,8 @@ uint8_t _buffer2;
 uint16_t mX, mY, mZ;
 double magX, magY, magZ;
 
+//MPU6500 MPU6500_t;
+
 float phiHat_deg_ = 0.0f;
 float thetaHat_deg_ = 0.0f;
 float phiHat_rad_ = 0.0f;
@@ -74,7 +77,11 @@ float P[2] = { 1.0f, 1.0f }; // Initial state covariance
 float Q[2] = { 0.1f, 0.1f }; // Process noise covariance
 float R[3] = { 0.01f, 0.01f, 0.01f }; // Measurement noise covariance
 
-MPU6500_t MPU6500;
+RCFilter lpfAcc[3];
+RCFilter lpfGyr[3];
+
+float acc_mps2[3];
+float gyr_rps[3];
 
 /**
  * @brief  Read data from Specific Register address of LSM9DS1
@@ -156,6 +163,7 @@ uint8_t MPU_begin(SPI_HandleTypeDef *SPIx, MPU6500_t *pMPU6500) {
 		MPU6500_SetDLPFBandwidth(DLPF_BANDWIDTH_20HZ);
 
 		// Set the full scale ranges
+
 		MPU_writeAccFullScaleRange(pMPU6500,
 				pMPU6500->settings.aFullScaleRange);
 		MPU_writeGyroFullScaleRange(pMPU6500,
@@ -167,7 +175,7 @@ uint8_t MPU_begin(SPI_HandleTypeDef *SPIx, MPU6500_t *pMPU6500) {
 }
 
 void MPU_CS(uint8_t state) {
-	HAL_GPIO_WritePin(GPIOE, CS_MPU_Pin, state);
+	HAL_GPIO_WritePin(GPIOB, CS_MPU_Pin, state);
 }
 
 uint8_t SPIx_WriteRead(uint8_t Byte) {
@@ -192,6 +200,7 @@ void MPU_SPI_Write(uint8_t *pBuffer, uint8_t WriteAddr, uint16_t NumByteToWrite)
 }
 
 void MPU_SPI_Read(uint8_t *pBuffer, uint8_t ReadAddr, uint16_t NumByteToRead) {
+	MPU_CS(CS_DES);
 	MPU_CS(CS_SEL);
 	uint8_t data = ReadAddr | READWRITE_CMD;
 	HAL_SPI_Transmit(&IMU_STREAM, &data, 1, 100);
@@ -386,6 +395,12 @@ void MPU_readProcessedData(MPU6500_t *pMPU6500) {
 	gyr_rps[1] = -pMPU6500->sensorData.gx;
 	gyr_rps[2] = -pMPU6500->sensorData.gz;
 
+	myprintf("Gyro axis to Euler axis mapping: Egx, Egy, Egz\r\n");
+	for (int i = 0; i < 3; i++) {
+		myprintf("%d\r\t", (int) gyr_rps[i]);
+	}
+	myprintf("\n");
+
 	// Convert accelerometer values to g's
 	pMPU6500->sensorData.ax = pMPU6500->rawData.ax
 			/ pMPU6500->sensorData.aScaleFactor;
@@ -398,28 +413,41 @@ void MPU_readProcessedData(MPU6500_t *pMPU6500) {
 	acc_mps2[1] = -pMPU6500->sensorData.ax;
 	acc_mps2[2] = -pMPU6500->sensorData.az;
 
-	myprintf("Before Filter:");
-
-	myprintf("Sensor Data: Ax, Ay, Az\r\n");
-	for (int i = 0; i < sizeof(acc_mps2); i++) {
-		myprintf("%x\r\t", acc_mps2[i]);
+	myprintf(" Accel axis to Euler axis mapping: Ay, Ax, Az\r\n");
+	for (int i = 0; i < 3; i++) {
+		myprintf("%d\r\t", (int) acc_mps2[i]);
 	}
 	myprintf("\n");
 
-	myprintf("RCF Filter:");
-	myprintf("Coeff and Out: %f\r\n", myRCFilter);
+	myprintf("\nRCFilter Init:\r\n");
+	myprintf("Coeff and Out: %f %f out: %f %f\r\n", myRCFilter.coeff[0],
+			myRCFilter.coeff[1], myRCFilter.out[0], myRCFilter.out[1]);
 	myprintf("Cutoff Freq: %f\r\n", cutoffFreqHz);
 	myprintf("Sample Time: %f\r\n", sampleTimeS);
-	RCFilter_Init(myRCFilter, cutoffFreqHz, sampleTimeS);
-	myprintf("EKF Filter:");
-	myprintf("P: %f\r\n", P);
-	myprintf("Q: %f\r\n", Q);
-	myprintf("R: %f\r\n", R);
-	EKF_Init(ekf, P, Q, R);
+	RCFilter Filter;
+	RCFilter_Init(&Filter, cutoffFreqHz, sampleTimeS);
+	myprintf("RCFilter Init complete\r\n");
 
+	myprintf("\nEKF Filter Init\n:");
+	myprintf("Value of Initial State co-varience\n");
+	for (int i = 0; i < 2; i++) {
+		myprintf("%.2f\r\t", P[i]);
+	}
+	myprintf("\n");
+	myprintf("Process Noise co-varience\n");
+	for (int i = 0; i < 2; i++) {
+		myprintf("%.2f\r\t", Q[i]);
+	}
+	myprintf("\n");
+	myprintf("Value of Measurement Noiseco-varience\n");
+	for (int i = 0; i < 3; i++) {
+		myprintf("%.2f\r\t", R[i]);
+	}
+	EKF_Init(&ekf, P, Q, R);
+	myprintf("\nEKF Filter Init Complete");
 }
 
-extern uint8_t Mag_Data[6];
+uint8_t Mag_Data[6];
 
 /// @brief Calculate the attitude of the sensor in degrees using a complementary filter
 /// @param SPIx Pointer to SPI structure config
@@ -482,7 +510,7 @@ void MPU_calcAttitude(MPU6500_t *pMPU6500) {
 	float q_rps = lpfGyr[1].out[0];
 	float r_rps = lpfGyr[2].out[0];
 
-	EKF_Predict(ekf, p_rps, q_rps, r_rps, sampleTimeS);
+	EKF_Predict(&ekf, p_rps, q_rps, r_rps, sampleTimeS);
 
 	//Transform body rates to Euler rates to get estimate of roll and pitch angles
 	float phiDot_rps = p_rps
@@ -506,7 +534,7 @@ void MPU_calcAttitude(MPU6500_t *pMPU6500) {
 	float ay_mps2 = lpfAcc[1].out[0];
 	float az_mps2 = lpfAcc[2].out[0];
 
-	EKF_Update(ekf, ax_mps2, ay_mps2, az_mps2);
+	EKF_Update(&ekf, ax_mps2, ay_mps2, az_mps2);
 
 	/*Calculate roll (phi) and pitch(theta) angle estimates using filtered accelerometer readings*/
 	phiHat_deg_ = atanf(ay_mps2 / az_mps2) * RAD_TO_DEG;
@@ -532,7 +560,7 @@ void IMU_Setup() {
 		HAL_UART_Transmit(&DEBUG_STREAM, serialBuf, strlen((char*) serialBuf),
 				100);
 	} else {
-		myprintf("MPU6500 Initialization Complete");
+		myprintf("MPU6500 Initialization Complete\r\n");
 	}
 
 //	 Calibrate the IMU
@@ -540,7 +568,7 @@ void IMU_Setup() {
 	HAL_Delay(1);
 	MPU_calibrateGyro(&MPU6500, 1500);
 	HAL_Delay(1000);
-	myprintf("Calibration  Complete");
+	myprintf("Calibration  Complete\r\n");
 
 }
 

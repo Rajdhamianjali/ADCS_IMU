@@ -18,8 +18,8 @@
 #include "RCFilter.h"
 #include "EKF.h"
 
-//Magnetometer library
 
+//Magnetometer library
 #define LSM9DS1_CTRL_REG1_M  0x20
 #define LSM9DS1_CTRL_REG2_M  0x21
 #define LSM9DS1_CTRL_REG3_M  0x22
@@ -38,21 +38,25 @@ extern UART_HandleTypeDef huart1;
 
 #define CS_SEL		0
 #define CS_DES      1
+#define RAD2DEG     57.2957795131
+#define RAD_TO_DEG 	57.2957795131f
+#define DEG_TO_RAD  (3.14159265358979323846 / 180.0)
 
-#define RAD2DEG 57.2957795131
-#define DEG_TO_RAD (3.14159265358979323846 / 180.0)
-
-RCFilter lpfAcc[3];
-RCFilter lpfGyr[3];
-#define RAD_TO_DEG 		57.2957795131f
 #define G_MPS2 9.8100000000f
 #define SAMPLE_TIME_MS_USB_ 1000
-
 #define IMU_ACC_RAW_TO_MPS2 0.00059875482f
 #define IMU_GYR_RAW_TO_RPS 0.00013323124
 
-float acc_mps2[3];
-float gyr_rps[3];
+extern RCFilter lpfAcc[3];
+extern RCFilter lpfGyr[3];
+extern EKF ekf;
+extern RCFilter myRCFilter;
+
+extern float acc_mps2[3];
+extern float gyr_rps[3];
+extern uint8_t Mag_Data[6];
+extern uint8_t _buffer1;
+extern uint8_t check;
 
 #define ACCEL_XOUT_H      0x3B
 #define ACCEL_XOUT_L      0x3C
@@ -67,6 +71,7 @@ float gyr_rps[3];
 #define GYRO_YOUT_L      0x46
 #define GYRO_ZOUT_H      0x47
 #define GYRO_ZOUT_L      0x48
+
 
 typedef struct MPU6500 {
 	struct RawData {
@@ -93,6 +98,8 @@ typedef struct MPU6500 {
 		uint8_t CS_PIN;
 	} settings;
 } MPU6500_t;
+
+
 
 // Full scale ranges
 enum gyroscopeFullScaleRange {

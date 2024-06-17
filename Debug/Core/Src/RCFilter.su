@@ -1,2 +1,2 @@
-RCFilter.c:10:6:RCFilter_Init	32	static
-RCFilter.c:25:7:RCFilter_Update	24	static
+RCFilter.c:11:6:RCFilter_Init	32	static
+RCFilter.c:26:7:RCFilter_Update	24	static

@@ -7,6 +7,8 @@
 
 #include "EKF.h"
 
+
+
 void EKF_Init(EKF *ekf, float P[2], float Q[2], float R[3]) {
 
 	/* Reset state estimates */

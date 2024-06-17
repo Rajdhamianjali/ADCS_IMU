@@ -15,7 +15,7 @@ typedef struct {
 
 } RCFilter;
 
-RCFilter *myRCFilter;
+RCFilter myRCFilter;
 
 void RCFilter_Init(RCFilter *filt, float cutoffFreqHz, float sampleTimeS);
 float RCFilter_Update(RCFilter *filt, float inp);

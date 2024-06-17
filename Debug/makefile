@@ -62,7 +62,7 @@ main-build: ADCS_IMU.elf secondary-outputs
 
 # Tool invocations
 ADCS_IMU.elf: $(OBJS) $(USER_OBJS) C:\Users\Anjali\STM32CubeIDE\workspace_1.7.0_v1\ADCS_IMU\STM32F103C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "ADCS_IMU.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\Anjali\STM32CubeIDE\workspace_1.7.0_v1\ADCS_IMU\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ADCS_IMU.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "ADCS_IMU.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\Anjali\STM32CubeIDE\workspace_1.7.0_v1\ADCS_IMU\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ADCS_IMU.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

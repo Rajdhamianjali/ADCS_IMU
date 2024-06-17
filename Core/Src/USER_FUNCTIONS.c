@@ -30,29 +30,11 @@ int buffersize(char *buff) {
  */
 void myprintf(const char *fmt, ...) {
 	static char temp[100];
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(temp, sizeof(temp), fmt, args);
-	va_end(args);
-	int len = buffersize(temp);
-#ifdef CDC_USB_DEBUG
-	CDC_Transmit_FS((uint8_t*) temp, len);
-
-#endif
-#ifdef UART_DEBUG
-	uint32_t tick = uwTick;
-	while (DEBUG_DATA_TX_FLAG != 0) {
-		HAL_Delay(1);
-		if (uwTick - tick > 5000) {
-			DEBUG_DATA_TX_FLAG = 0;
-		}
-	}
-	DEBUG_DATA_TX_FLAG = 0;
-	HAL_UART_Transmit_IT(&DEBUG_STREAM, (uint8_t*) temp, len);
-	while (DEBUG_DATA_TX_FLAG != 1) {
-
-	}
-	DEBUG_DATA_TX_FLAG = 0;
-#endif
+		va_list args;
+		va_start(args, fmt);
+		vsnprintf(temp, sizeof(temp), fmt, args);
+		va_end(args);
+		int len = buffersize(temp);
+		HAL_UART_Transmit(&DEBUG_STREAM, (uint8_t*) temp, len, 1000);
 }
 
